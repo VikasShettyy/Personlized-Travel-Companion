@@ -1,0 +1,849 @@
+/* ==============================
+   GLOBAL STYLES
+============================== */
+
+* {
+    box-sizing: border-box;
+}
+
+:root {
+    --green: #0ca678;
+    --mint: #36d9a4;
+    --deep: #063b31;
+    --ink: #202522;
+    --muted: #68716c;
+    --paper: #f5f8f5;
+    --line: #e2e8e3;
+    --white: #ffffff;
+    --soft-green: #e5f7ee;
+    --shadow: 0 5px 20px rgba(16, 43, 23, 0.07);
+    --shadow-hover: 0 10px 28px rgba(16, 43, 23, 0.12);
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    background: var(--paper);
+    font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+}
+
+a {
+    color: var(--deep);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+img {
+    max-width: 100%;
+}
+
+
+/* ==============================
+   HEADER AND NAVIGATION
+============================== */
+
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px max(5%, calc((100% - 1180px) / 2));
+    background: var(--white);
+    border-bottom: 1px solid var(--line);
+    gap: 20px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 10px rgba(16, 43, 23, 0.025);
+}
+
+.brand {
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ink);
+    font-size: 17px;
+}
+
+.brand-icon {
+    border: 2px solid var(--deep);
+    border-radius: 8px;
+    padding: 3px 6px;
+    font-size: 12px;
+}
+
+nav {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-size: 14px;
+}
+
+nav a {
+    color: #4c554f;
+    transition: color 0.2s ease;
+}
+
+nav a:hover {
+    color: var(--green);
+    text-decoration: none;
+}
+
+.nav-cta,
+.btn {
+    background: #171b19;
+    color: white;
+    border: 0;
+    border-radius: 9px;
+    padding: 10px 16px;
+    display: inline-block;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 650;
+    text-align: center;
+    transition: background 0.2s ease, transform 0.2s ease,
+                box-shadow 0.2s ease;
+}
+
+.btn:hover,
+.nav-cta:hover {
+    background: var(--deep);
+    color: white;
+    text-decoration: none;
+    box-shadow: 0 4px 12px rgba(6, 59, 49, 0.15);
+    transform: translateY(-1px);
+}
+
+.btn.secondary {
+    background: #e9efeb;
+    color: var(--ink);
+}
+
+.btn.secondary:hover {
+    background: #dce9e0;
+}
+
+.btn.danger {
+    background: #a62f2f;
+}
+
+.btn.danger:hover {
+    background: #842323;
+}
+
+.btn.small {
+    padding: 6px 11px;
+    font-size: 13px;
+}
+
+
+/* ==============================
+   PAGE CONTAINER
+============================== */
+
+.container {
+    max-width: 1180px;
+    margin: 30px auto;
+    padding: 0 20px;
+    min-height: 70vh;
+}
+
+h1,
+h2,
+h3 {
+    line-height: 1.25;
+    color: var(--ink);
+}
+
+h2 {
+    margin-top: 28px;
+    margin-bottom: 14px;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+
+/* ==============================
+   HERO AND SEARCH
+============================== */
+
+.hero {
+    text-align: center;
+    padding: 48px 24px 34px;
+    background: linear-gradient(135deg, #e1f6eb, #f7fbf8 75%);
+    border: 1px solid #e4f0e7;
+    border-radius: 20px;
+    margin-bottom: 30px;
+}
+
+.eyebrow {
+    color: var(--green);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    font-size: 12px;
+}
+
+.hero h1 {
+    font-size: clamp(30px, 4vw, 48px);
+    line-height: 1.12;
+    margin: 12px 0;
+    letter-spacing: -0.8px;
+}
+
+.hero p {
+    color: var(--muted);
+    max-width: 650px;
+    margin: 0 auto 22px;
+}
+
+.searchbox {
+    display: flex;
+    max-width: 780px;
+    margin: 20px auto 10px;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.searchbox input,
+.searchbox select {
+    flex: 1;
+    min-width: 140px;
+}
+
+
+/* ==============================
+   GRIDS AND CARDS
+============================== */
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.card {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    transition: box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-hover);
+    border-color: #d4e5d9;
+}
+
+.destination {
+    padding: 0;
+    overflow: hidden;
+}
+
+.destination img {
+    width: 100%;
+    height: 175px;
+    object-fit: cover;
+    background: #e8eee9;
+    display: block;
+    transition: transform 0.35s ease;
+}
+
+.destination .body {
+    padding: 18px;
+}
+
+.destination .body h3 {
+    margin-top: 10px;
+    margin-bottom: 8px;
+}
+
+.tag {
+    display: inline-block;
+    background: var(--soft-green);
+    color: #08734e;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+
+/* ==============================
+   FORMS AND INPUTS
+============================== */
+
+form.stack {
+    display: grid;
+    gap: 15px;
+}
+
+label {
+    font-size: 13px;
+    font-weight: 700;
+    display: grid;
+    gap: 6px;
+}
+
+input,
+select,
+textarea {
+    font: inherit;
+    padding: 11px 13px;
+    border: 1px solid #d8e0da;
+    border-radius: 9px;
+    background: var(--white);
+    width: 100%;
+    min-width: 0;
+    color: var(--ink);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(12, 166, 120, 0.12);
+}
+
+textarea {
+    min-height: 130px;
+    resize: vertical;
+}
+
+.form-card {
+    max-width: 520px;
+    margin: 32px auto;
+}
+
+
+/* ==============================
+   MESSAGES AND TABLES
+============================== */
+
+.flash {
+    padding: 13px 16px;
+    background: #e2f6e9;
+    border: 1px solid #b9e7ca;
+    border-radius: 10px;
+    margin-bottom: 18px;
+}
+
+.error {
+    background: #ffebeb;
+    border-color: #f0b5b5;
+}
+
+.table-wrap {
+    overflow: auto;
+    background: var(--white);
+    border-radius: 13px;
+    border: 1px solid var(--line);
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 650px;
+}
+
+th,
+td {
+    text-align: left;
+    padding: 13px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+}
+
+th {
+    background: #f0f6f1;
+    font-size: 13px;
+}
+
+.progress {
+    height: 10px;
+    background: #e5eae6;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--green), var(--mint));
+}
+
+.metric {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+.footer {
+    text-align: center;
+    color: #77817a;
+    padding: 30px 20px;
+    font-size: 13px;
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.empty {
+    padding: 30px;
+    text-align: center;
+    color: var(--muted);
+}
+
+.day {
+    border-left: 3px solid var(--mint);
+    padding: 13px 16px;
+    margin: 14px 0;
+    background: #f8fbf9;
+    border-radius: 0 10px 10px 0;
+}
+
+.warning {
+    background: #fff5df;
+    border: 1px solid #f2d18a;
+    border-radius: 10px;
+    padding: 13px;
+    color: #75530b;
+}
+
+.good {
+    background: #e5f7ec;
+    border: 1px solid #b9e7ca;
+    border-radius: 10px;
+    padding: 13px;
+    color: #17683e;
+}
+
+.smalltext {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+
+/* ==============================
+   MY TRIPS DASHBOARD
+============================== */
+
+.dashboard-profile {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 28px;
+    padding: 24px;
+    background: linear-gradient(120deg, #ffffff, #f4faf6);
+    border-color: #dcebe0;
+}
+
+.profile-avatar {
+    width: 58px;
+    height: 58px;
+    flex: 0 0 58px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #e1f5e9;
+    color: var(--deep);
+    font-size: 21px;
+    font-weight: 800;
+    border: 1px solid #d0ead9;
+}
+
+.profile-summary {
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-summary h1 {
+    font-size: 23px;
+    margin: 4px 0;
+}
+
+.profile-summary p {
+    margin: 0;
+}
+
+.profile-stats {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.profile-stats strong {
+    color: var(--ink);
+}
+
+.profile-edit {
+    white-space: nowrap;
+}
+
+.dashboard-heading {
+    margin-bottom: 10px;
+}
+
+.dashboard-heading h2 {
+    margin: 0 0 5px;
+}
+
+.dashboard-heading p {
+    margin: 0;
+}
+
+
+/* ==============================
+   TRIP TABS
+============================== */
+
+.trip-tabs {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 18px 0 22px;
+    padding: 0;
+}
+
+.trip-tabs a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 15px;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.trip-tabs a:hover {
+    background: #f0f8f2;
+    border-color: #c9e5d2;
+    text-decoration: none;
+}
+
+.trip-tabs a span {
+    font-size: 11px;
+    color: var(--muted);
+    background: #f0f3f0;
+    border-radius: 20px;
+    padding: 2px 7px;
+}
+
+.trip-tabs a.active {
+    background: #171b19;
+    color: #fff;
+    border-color: #171b19;
+}
+
+.trip-tabs a.active span {
+    background: #3c423f;
+    color: #fff;
+}
+
+
+/* ==============================
+   TRIP CARDS
+============================== */
+
+.trips-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.trip-card {
+    padding: 0;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 145px minmax(0, 1fr);
+    gap: 0;
+}
+
+.trip-image {
+    min-height: 100%;
+    background: #eef1ee;
+    overflow: hidden;
+}
+
+.trip-image img {
+    width: 100%;
+    height: 100%;
+    min-height: 190px;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+.trip-image-placeholder {
+    min-height: 190px;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    color: #9aa29c;
+    font-size: 11px;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, #edf5ef, #e5eee7);
+}
+
+.trip-card-content {
+    padding: 18px;
+    min-width: 0;
+}
+
+.trip-card-top {
+    margin-bottom: 8px;
+}
+
+.trip-card h3 {
+    font-size: 18px;
+    margin: 10px 0 5px;
+}
+
+.trip-card p {
+    margin: 0 0 12px;
+}
+
+.trip-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    color: var(--muted);
+    font-size: 12px;
+    margin: 14px 0;
+}
+
+.trip-meta strong {
+    color: var(--ink);
+}
+
+.trip-card-actions {
+    margin-top: 12px;
+}
+
+.status-draft {
+    background: #f1f2f1;
+    color: #535b56;
+}
+
+.status-upcoming,
+.status-active {
+    background: #e5f7ee;
+    color: #08734e;
+}
+
+.status-past {
+    background: #edf0f3;
+    color: #515b65;
+}
+
+.trips-empty {
+    padding: 42px 20px;
+}
+
+.empty-icon {
+    font-size: 30px;
+    margin-bottom: 8px;
+}
+
+
+/* ==============================
+   DESTINATION DETAILS
+============================== */
+
+.destination-detail-image {
+    width: 100%;
+    max-height: 360px;
+    object-fit: cover;
+    border-radius: 12px;
+    display: block;
+}
+
+.destination-detail-placeholder {
+    min-height: 240px;
+    display: grid;
+    place-items: center;
+    background: #eef4ef;
+    color: #9aa29c;
+    border-radius: 12px;
+}
+
+
+/* ==============================
+   TABLET RESPONSIVE
+============================== */
+
+@media (max-width: 850px) {
+    .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .two-col {
+        grid-template-columns: 1fr;
+    }
+
+    .topbar {
+        padding: 14px 18px;
+    }
+
+    .trips-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ==============================
+   MOBILE RESPONSIVE
+============================== */
+
+@media (max-width: 560px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+
+    .container {
+        padding: 0 13px;
+        margin-top: 18px;
+    }
+
+    .hero {
+        padding: 30px 14px;
+        border-radius: 15px;
+    }
+
+    .topbar {
+        align-items: flex-start;
+    }
+
+    nav {
+        gap: 12px;
+    }
+
+    .destination img {
+        height: 190px;
+    }
+
+    .dashboard-profile {
+        align-items: flex-start;
+        gap: 12px;
+        padding: 16px;
+        flex-wrap: wrap;
+    }
+
+    .profile-avatar {
+        width: 46px;
+        height: 46px;
+        flex-basis: 46px;
+        font-size: 18px;
+    }
+
+    .profile-summary {
+        flex: 1 1 calc(100% - 65px);
+    }
+
+    .profile-summary h1 {
+        font-size: 20px;
+    }
+
+    .profile-stats {
+        gap: 10px;
+    }
+
+    .profile-edit {
+        margin-left: 58px;
+    }
+
+    .dashboard-heading {
+        align-items: flex-start;
+    }
+
+    .trip-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .trip-tabs a {
+        justify-content: center;
+        padding: 9px 6px;
+        font-size: 11px;
+        gap: 4px;
+    }
+
+    .trip-card {
+        grid-template-columns: 1fr;
+    }
+
+    .trip-image img,
+    .trip-image-placeholder {
+        height: 145px;
+        min-height: 145px;
+    }
+
+    .trip-card-content {
+        padding: 16px;
+    }
+
+    .card {
+        padding: 16px;
+    }
+
+    .destination {
+        padding: 0;
+    }
+}
+
+
+/* ==============================
+   REDUCED MOTION ACCESSIBILITY
+============================== */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}
