@@ -1,3 +1,4 @@
+
 <?php
 require 'config.php';
 
@@ -6,6 +7,13 @@ require_login();
 $pageTitle = 'My Trips';
 
 $userId = (int)$_SESSION['user']['id'];
+
+// ADDED: Get the user's profile photo
+$photoStmt = $pdo->prepare(
+    'SELECT profile_photo FROM users WHERE id = ?'
+);
+$photoStmt->execute([$userId]);
+$profilePhoto = $photoStmt->fetchColumn() ?: '';
 
 $filter = strtolower(trim($_GET['filter'] ?? 'upcoming'));
 
@@ -93,18 +101,34 @@ require 'header.php';
 
 <section class="dashboard-profile card">
 
-    <div class="profile-avatar" aria-hidden="true">
-        <?= e(
-            strtoupper(
-                mb_substr(
-                    $_SESSION['user']['full_name'] ?? 'U',
-                    0,
-                    1,
-                    'UTF-8'
+    <!-- CHANGED: Show photo if uploaded; otherwise show initials -->
+    <?php if ($profilePhoto !== ''): ?>
+
+        <img
+            class="profile-avatar"
+            src="<?= e($profilePhoto) ?>"
+            alt="Profile photo"
+            width="100"
+            height="100"
+            style="object-fit: cover;"
+        >
+
+    <?php else: ?>
+
+        <div class="profile-avatar" aria-hidden="true">
+            <?= e(
+                strtoupper(
+                    mb_substr(
+                        $_SESSION['user']['full_name'] ?? 'U',
+                        0,
+                        1,
+                        'UTF-8'
+                    )
                 )
-            )
-        ) ?>
-    </div>
+            ) ?>
+        </div>
+
+    <?php endif; ?>
 
     <div class="profile-summary">
 
@@ -267,6 +291,7 @@ require 'header.php';
                                 $displayStatus = 'Active';
                             }
                         ?>
+
                         <span class="tag status-<?= strtolower($displayStatus) ?>">
                             <?= e($displayStatus) ?>
                         </span>
