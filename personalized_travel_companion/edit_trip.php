@@ -1,19 +1,15 @@
 <?php
-require 'config.php';
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/backend/trips.php';
+
 require_login();
 
-$id = (int)($_GET['id'] ?? 0);
+$id = (int) ($_GET['id'] ?? 0);
+$userId = (int) $_SESSION['user']['id'];
 
 // Fetch the trip to ensure it belongs to the logged-in user
-$stmt = $pdo->prepare(
-    'SELECT t.*, d.name AS destination_name 
-     FROM trips t 
-     JOIN destinations d ON d.id = t.destination_id 
-     WHERE t.id = ? AND t.user_id = ?'
-);
-$stmt->execute([$id, $_SESSION['user']['id']]);
-$trip = $stmt->fetch();
-
+$trip = get_trip_details($pdo, $id, $userId);
 if (!$trip) {
     redirect('my_trips.php');
 }
@@ -27,39 +23,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title = trim($_POST['title'] ?? '');
     $startDate = $_POST['start_date'] ?? '';
     $endDate = $_POST['end_date'] ?? '';
-    $groupSize = (int)($_POST['group_size'] ?? 1);
-    $budget = (float)($_POST['budget'] ?? 0);
+    $groupSize = (int) ($_POST['group_size'] ?? 1);
+    $budget = (float) ($_POST['budget'] ?? 0);
 
-    // Validate dates & recalculate duration
     if ($startDate === '' || $endDate === '') {
         $error = 'Please select both start and end dates.';
     } elseif ($endDate < $startDate) {
         $error = 'End date cannot be before start date.';
-    } else {
-        $secDiff = strtotime($endDate) - strtotime($startDate);
-        $days = max(1, floor($secDiff / (60 * 60 * 24)) + 1);
-    }
-
-    if ($error === '' && $title === '') {
+    } elseif ($title === '') {
         $error = 'Please enter a trip title.';
-    }
-
-    if ($error === '') {
+    } else {
         try {
-            $stmt = $pdo->prepare(
-                'UPDATE trips 
-                 SET title = ?, start_date = ?, end_date = ?, duration_days = ?, group_size = ?, budget = ? 
-                 WHERE id = ? AND user_id = ?'
-            );
-            $stmt->execute([
-                $title,
-                $startDate,
-                $endDate,
-                $days,
-                $groupSize,
-                $budget,
-                $id,
-                $_SESSION['user']['id']
+            update_trip($pdo, $id, $userId, [
+                'title'      => $title,
+                'start_date' => $startDate,
+                'end_date'   => $endDate,
+                'group_size' => $groupSize,
+                'budget'     => $budget,
             ]);
 
             redirect('itinerary.php?id=' . $id);
@@ -70,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = 'Edit Trip';
-require 'header.php';
+require_once __DIR__ . '/includes/header.php';
 ?>
 
 <div class="container" style="max-width: 800px; margin: 30px auto; background: #fff; padding: 30px; border-radius: 12px; border: 1px solid #dce7df;">
@@ -126,4 +106,4 @@ require 'header.php';
     </form>
 </div>
 
-<?php require 'footer.php'; ?>
+<?php require_once __DIR__ . '/includes/footer.php'; ?>
