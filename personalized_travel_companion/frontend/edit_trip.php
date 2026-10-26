@@ -1,6 +1,5 @@
 
 <?php
-declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/backend/trips.php';
 
@@ -21,7 +20,7 @@ if (!$trip) {
     redirect('my_trips.php');
 }
 
-// IMPORTANT: Define $escape before using it anywhere in the page.
+// Escape output safely.
 $escape = static function ($value): string {
     return htmlspecialchars(
         (string) $value,
@@ -40,6 +39,7 @@ $form = [
     'group_size' => (string) ($trip['group_size'] ?? '1'),
 ];
 
+// Validate YYYY-MM-DD dates.
 $isValidDate = static function (string $date): bool {
     $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
 
@@ -47,7 +47,7 @@ $isValidDate = static function (string $date): bool {
         && $parsed->format('Y-m-d') === $date;
 };
 
-// Process the submitted form.
+// Handle form submission.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
 
@@ -120,7 +120,7 @@ require_once __DIR__ . '/includes/header.php';
         background: #fff;
         border: 1px solid #dce7df;
         border-radius: 16px;
-        box-shadow: 0 8px 24px rgba(20, 60, 40, .05);
+        box-shadow: 0 8px 24px rgba(20, 60, 40, 0.05);
     }
 
     .edit-trip h1 {
@@ -254,9 +254,7 @@ require_once __DIR__ . '/includes/header.php';
 
     <p class="muted">
         Update the details for
-        <strong>
-            <?= $escape($trip['destination_name'] ?? 'your destination') ?>
-        </strong>.
+        <strong><?= $escape($trip['destination_name'] ?? 'your destination') ?></strong>.
     </p>
 
     <?php if ($error !== ''): ?>
@@ -265,10 +263,8 @@ require_once __DIR__ . '/includes/header.php';
         </div>
     <?php endif; ?>
 
-    <form
-        method="POST"
-        action="edit_trip.php?id=<?= $id ?>"
-    >
+    <form method="POST" action="edit_trip.php?id=<?= $id ?>">
+
         <input
             type="hidden"
             name="csrf"
@@ -360,6 +356,7 @@ require_once __DIR__ . '/includes/header.php';
             </a>
 
         </div>
+
     </form>
 
 </main>
