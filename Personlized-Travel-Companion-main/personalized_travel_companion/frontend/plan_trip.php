@@ -1,91 +1,67 @@
 <?php
-require 'config.php';
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/backend/destinations.php';
+require_once dirname(__DIR__) . '/backend/trips.php';
+
 require_login();
 
 // 1. Get destination ID
-$destId = (int)($_GET['destination_id'] ?? $_POST['destination_id'] ?? 0);
+$destId = (int) ($_GET['destination_id'] ?? $_POST['destination_id'] ?? 0);
 if ($destId <= 0) {
     redirect('index.php');
 }
 
 // 2. Fetch destination details
-$stmt =$pdo->prepare('SELECT * FROM destinations WHERE id = ?');
-$stmt->execute([$destId]);
-$destination =$stmt->fetch();
+$destination = get_destination_by_id($pdo, $destId);
 if (!$destination) {
     redirect('index.php');
 }
 
 // 3. Fetch available activities
-$stmt =$pdo->prepare('SELECT * FROM activities WHERE destination_id = ?');
-$stmt->execute([$destId]);
-$activities =$stmt->fetchAll();
+$activities = get_destination_activities($pdo, $destId);
 
-$error = '';$days = 0;
+$error = '';
+$days = 0;
 
 // 4. Handle Form Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
 
     $title = trim($_POST['title'] ?? '');
-    $startDate =$_POST['start_date'] ?? '';
-    $endDate =$_POST['end_date'] ?? '';
-    $groupSize = (int)($_POST['group_size'] ?? 1);
-    $budget = (float)($_POST['budget'] ?? 0);
-    $selectedActivities =$_POST['activities'] ?? [];
+    $startDate = $_POST['start_date'] ?? '';
+    $endDate = $_POST['end_date'] ?? '';
+    $groupSize = (int) ($_POST['group_size'] ?? 1);
+    $budget = (float) ($_POST['budget'] ?? 0);
+    $selectedActivities = $_POST['activities'] ?? [];
 
-    // Date & duration calculation on server
-    if ($startDate === '' || $endDate === '') {$error = 'Please select both start and end dates.';
-    } elseif ($endDate < $startDate) {$error = 'End date cannot be before start date.';
+    if ($startDate === '' || $endDate === '') {
+        $error = 'Please select both start and end dates.';
+    } elseif ($endDate < $startDate) {
+        $error = 'End date cannot be before start date.';
+    } elseif ($title === '') {
+        $error = 'Please enter a trip title.';
     } else {
-        $secDiff = strtotime($endDate) - strtotime($startDate);
-        $days = max(1, floor($secDiff / (60 * 60 * 24)) + 1);
-    }
-
-    if ($error === '' && $title === '') {$error = 'Please enter a trip title.';
-    }
-
-    // Save to Database
-    if ($error === '') {
         try {
-            $pdo->beginTransaction();
-
-            // Insert trip record
-            $stmt =$pdo->prepare(
-                'INSERT INTO trips (user_id, destination_id, title, start_date, end_date, duration_days, group_size, budget, status)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, "draft")'
-            );
-            $stmt->execute([
-                $_SESSION['user']['id'],$destId,
-                $title,$startDate,
-                $endDate,$days,
-                $groupSize,$budget
+            $tripId = create_trip($pdo, (int) $_SESSION['user']['id'], [
+                'destination_id' => $destId,
+                'title'          => $title,
+                'start_date'     => $startDate,
+                'end_date'       => $endDate,
+                'group_size'     => $groupSize,
+                'budget'         => $budget,
+                'activities'     => $selectedActivities,
             ]);
 
-            $tripId = (int)$pdo->lastInsertId();
-
-            // Insert selected activities
-            if (!empty($selectedActivities)) {
-                $actStmt =$pdo->prepare(
-                    'INSERT INTO trip_activities (trip_id, activity_id, day_number) VALUES (?, ?, 1)'
-                );
-                foreach ($selectedActivities as $actId) {$actStmt->execute([$tripId, (int)$actId]);
-                }
-            }
-
-            $pdo->commit();
             redirect('itinerary.php?id=' . $tripId);
-
         } catch (Throwable $e) {
-            if ($pdo->inTransaction()) {$pdo->rollBack();
-            }
             $error = 'Could not save trip. Please try again.';
         }
     }
 }
 
 $pageTitle = 'Plan Your Trip';
-require 'header.php';
+require_once __DIR__ . '/includes/header.php';
 ?>
 
 <div class="container">
@@ -129,7 +105,7 @@ require 'header.php';
                     <input type="date" id="end_date" name="end_date" value="<?= htmlspecialchars($_POST['end_date'] ?? date('Y-m-d', strtotime('+2 days'))) ?>" required style="padding: 10px; border: 1px solid #ccd8ce; border-radius: 8px;">
                 </label>
 
-                <!-- Trip Duration calculated box as requested -->
+                <!-- Trip Duration calculated box -->
                 <label style="display: flex; flex-direction: column; gap: 5px; font-weight: bold; font-size: 14px;">
                     Trip duration
                     <input type="text" id="duration_display" value="Select your dates" readonly style="padding: 10px; border: 1px solid #ccd8ce; border-radius: 8px; background: #f0f5f1; font-weight: bold;">
@@ -152,7 +128,7 @@ require 'header.php';
                 <div style="border: 1px solid #dce7df; padding: 15px; border-radius: 10px; min-height: 250px;">
                     <h3 style="margin-top: 0; font-size: 16px;">Available Activities</h3>
                     <div id="availableList" style="display: flex; flex-direction: column; gap: 10px;">
-                        <?php foreach ($activities as$act): ?>
+                        <?php foreach ($activities as $act): ?>
                             <div class="item" data-id="<?= $act['id'] ?>" data-name="<?= htmlspecialchars($act['name']) ?>" data-cost="<?= $act['estimated_cost'] ?>" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #e2e8e3; border-radius: 8px; background: #fafcfb;">
                                 <div>
                                     <strong style="font-size: 14px; display: block;"><?= htmlspecialchars($act['name']) ?></strong>
@@ -274,4 +250,4 @@ function renderSelected() {
 }
 </script>
 
-<?php require 'footer.php'; ?>
+<?php require_once __DIR__ . '/includes/footer.php'; ?>

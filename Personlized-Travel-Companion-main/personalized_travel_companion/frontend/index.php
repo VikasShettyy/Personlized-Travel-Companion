@@ -1,53 +1,18 @@
 <?php
-require 'config.php';
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/backend/destinations.php';
 
 $pageTitle = 'Explore Karnataka';
 
 $q = trim($_GET['q'] ?? '');
-$category = (int)($_GET['category'] ?? 0);
+$category = (int) ($_GET['category'] ?? 0);
 $minBudget = trim($_GET['budget'] ?? '');
 
-$sql = "SELECT d.*, c.name AS category_name
-        FROM destinations d
-        LEFT JOIN categories c ON c.id = d.category_id
-        WHERE 1=1";
+$destinations = get_all_destinations($pdo, $q, $category, $minBudget);
+$categories = get_destination_categories($pdo);
 
-$params = [];
-
-if ($q !== '') {
-    $sql .= " AND (
-        d.name LIKE ?
-        OR d.district LIKE ?
-        OR d.description LIKE ?
-    )";
-
-    $like = "%$q%";
-
-    array_push($params, $like, $like, $like);
-}
-
-if ($category > 0) {
-    $sql .= " AND d.category_id = ?";
-    $params[] = $category;
-}
-
-if ($minBudget !== '' && is_numeric($minBudget)) {
-    $sql .= " AND d.estimated_cost <= ?";
-    $params[] = (float)$minBudget;
-}
-
-$sql .= " ORDER BY d.name";
-
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-
-$destinations = $stmt->fetchAll();
-
-$categories = $pdo->query(
-    "SELECT * FROM categories ORDER BY name"
-)->fetchAll();
-
-require 'header.php';
+require_once __DIR__ . '/includes/header.php';
 ?>
 
 <section class="hero">
@@ -77,7 +42,7 @@ require 'header.php';
             <?php foreach ($categories as $c): ?>
                 <option
                     value="<?= $c['id'] ?>"
-                    <?= $category === (int)$c['id'] ? 'selected' : '' ?>
+                    <?= $category === (int) $c['id'] ? 'selected' : '' ?>
                 >
                     <?= e($c['name']) ?>
                 </option>
@@ -157,12 +122,12 @@ require 'header.php';
                 <div class="between">
 
                     <strong>
-                        From ₹<?= number_format((float)$d['estimated_cost']) ?>
+                        From ₹<?= number_format((float) $d['estimated_cost']) ?>
                     </strong>
 
                     <a
                         class="btn small"
-                        href="destination.php?id=<?= (int)$d['id'] ?>"
+                        href="destination.php?id=<?= (int) $d['id'] ?>"
                     >
                         View details
                     </a>
@@ -186,4 +151,4 @@ require 'header.php';
 
 <?php endif; ?>
 
-<?php require 'footer.php'; ?>
+<?php require_once __DIR__ . '/includes/footer.php'; ?>

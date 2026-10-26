@@ -13,7 +13,7 @@
             <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
                 <label style="font-size:13px; font-weight:bold;">
                     Cardholder Name
-                    <input type="text" value="<?= htmlspecialchars($_SESSION['user']['name'] ?? 'Traveler') ?>" required style="width:100%; padding:8px; margin-top:4px; border:1px solid #ccd8ce; border-radius:6px;">
+                    <input type="text" value="<?= htmlspecialchars($_SESSION['user']['full_name'] ?? 'Traveler') ?>" required style="width:100%; padding:8px; margin-top:4px; border:1px solid #ccd8ce; border-radius:6px;">
                 </label>
 
                 <label style="font-size:13px; font-weight:bold;">

@@ -1,19 +1,15 @@
 <?php
-require 'config.php';
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/backend/trips.php';
+
 require_login();
 
-$id = (int)($_GET['id'] ?? 0);
+$id = (int) ($_GET['id'] ?? 0);
+$userId = (int) $_SESSION['user']['id'];
 
 // Fetch trip details
-$s = $pdo->prepare(
-    'SELECT t.*, d.name AS destination_name, d.estimated_cost AS destination_base_cost
-     FROM trips t
-     JOIN destinations d ON d.id = t.destination_id
-     WHERE t.id = ? AND t.user_id = ?'
-);
-$s->execute([$id, $_SESSION['user']['id']]);
-$trip = $s->fetch();
-
+$trip = get_trip_details($pdo, $id, $userId);
 if (!$trip) {
     http_response_code(404);
     exit('Trip not found or access denied.');
@@ -26,44 +22,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'confirm') {
-        $pdo->prepare("UPDATE trips SET status = 'upcoming' WHERE id = ? AND user_id = ?")
-            ->execute([$id, $_SESSION['user']['id']]);
+        confirm_trip($pdo, $id, $userId);
         redirect('itinerary.php?id=' . $id);
     }
 
     if ($action === 'delete') {
-        $pdo->prepare('DELETE FROM trips WHERE id = ? AND user_id = ?')
-            ->execute([$id, $_SESSION['user']['id']]);
+        delete_trip($pdo, $id, $userId);
         redirect('my_trips.php');
     }
 
-    // Assign an activity to a specific day
     if ($action === 'update_activity_day') {
-        $tripActivityId = (int)($_POST['trip_activity_id'] ?? 0);
-        $dayNumber = (int)($_POST['day_number'] ?? 1);
-
-        $pdo->prepare('UPDATE trip_activities SET day_number = ? WHERE id = ? AND trip_id = ?')
-            ->execute([$dayNumber, $tripActivityId, $id]);
+        $tripActivityId = (int) ($_POST['trip_activity_id'] ?? 0);
+        $dayNumber = (int) ($_POST['day_number'] ?? 1);
+        update_trip_activity_day($pdo, $id, $tripActivityId, $dayNumber);
         redirect('itinerary.php?id=' . $id);
     }
 
-    // Add Custom User-Created Activity
     if ($action === 'add_custom_activity') {
         $customName = trim($_POST['custom_name'] ?? '');
-        $customCost = max(0, (float)($_POST['custom_cost'] ?? 0));
-        $targetDay = (int)($_POST['target_day'] ?? 1);
-
+        $customCost = max(0, (float) ($_POST['custom_cost'] ?? 0));
+        $targetDay = (int) ($_POST['target_day'] ?? 1);
         if ($customName !== '') {
-            // First, insert into activities table or map as a custom activity. 
-            // To keep it simple and relation-friendly, we insert a custom activity linked to this destination or trip.
-            // Let's insert it into a general activities pool or directly handle it.
-            $actStmt = $pdo->prepare('INSERT INTO activities (destination_id, name, estimated_cost) VALUES (?, ?, ?)');
-            $actStmt->execute([$trip['destination_id'], $customName, $customCost]);
-            $newActivityId = $pdo->lastInsertId();
-
-            // Then link it to trip_activities for the selected day
-            $linkStmt = $pdo->prepare('INSERT INTO trip_activities (trip_id, activity_id, day_number) VALUES (?, ?, ?)');
-            $linkStmt->execute([$id, $newActivityId, $targetDay]);
+            add_custom_activity_to_trip($pdo, $id, (int) $trip['destination_id'], $customName, $customCost, $targetDay);
         }
         redirect('itinerary.php?id=' . $id);
     }
@@ -71,45 +51,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'expense') {
         $title = trim($_POST['expense_title'] ?? '');
         $category = trim($_POST['expense_category'] ?? 'Other');
-        $est = max(0, (float)($_POST['estimated_amount'] ?? 0));
-        $actual = max(0, (float)($_POST['actual_amount'] ?? 0));
-
+        $est = max(0, (float) ($_POST['estimated_amount'] ?? 0));
+        $actual = max(0, (float) ($_POST['actual_amount'] ?? 0));
         if ($title !== '') {
-            $pdo->prepare('INSERT INTO expenses (trip_id, title, category, estimated_amount, actual_amount) VALUES (?, ?, ?, ?, ?)')
-                ->execute([$id, $title, $category, $est, $actual]);
+            add_trip_expense($pdo, $id, $title, $category, $est, $actual);
         }
         redirect('itinerary.php?id=' . $id);
     }
 }
 
 // Fetch activities mapped to this trip
-$as = $pdo->prepare(
-    'SELECT ta.*, a.name, a.estimated_cost
-     FROM trip_activities ta
-     JOIN activities a ON a.id = ta.activity_id
-     WHERE ta.trip_id = ?
-     ORDER BY day_number'
-);
-$as->execute([$id]);
-$items = $as->fetchAll();
-
-$es = $pdo->prepare('SELECT * FROM expenses WHERE trip_id = ? ORDER BY created_at DESC');
-$es->execute([$id]);
-$expenses = $es->fetchAll();
+$items = get_trip_activities($pdo, $id);
+$expenses = get_trip_expenses($pdo, $id);
 
 // Calculations
-$activityTotal = array_sum(array_map(fn($x) => (float)$x['estimated_cost'], $items));
-$expenseEstimate = array_sum(array_map(fn($x) => (float)$x['estimated_amount'], $expenses));
-$baseCostPerPerson = (float)$trip['destination_base_cost'];
-$groupSize = max(1, (int)$trip['group_size']);
+$activityTotal = array_sum(array_map(fn($x) => (float) $x['estimated_cost'], $items));
+$expenseEstimate = array_sum(array_map(fn($x) => (float) $x['estimated_amount'], $expenses));
+$baseCostPerPerson = (float) $trip['destination_base_cost'];
+$groupSize = max(1, (int) $trip['group_size']);
 $destinationEstimate = $baseCostPerPerson * $groupSize;
 
 $estimated = $destinationEstimate + $activityTotal + $expenseEstimate;
-$budget = (float)$trip['budget'];
+$budget = (float) $trip['budget'];
 $budgetPercentage = $budget > 0 ? min(100, ($estimated / $budget) * 100) : 0;
 
 $pageTitle = 'Itinerary';
-require 'header.php';
+require_once __DIR__ . '/includes/header.php';
 ?>
 
 <div class="between" style="margin-bottom: 24px;">
@@ -119,7 +86,7 @@ require 'header.php';
         </span>
         <h1 style="margin: 8px 0 4px; font-size: 28px;">Your <?= e($trip['destination_name']) ?> Itinerary</h1>
         <p class="muted" style="margin: 0; font-size: 14px;">
-            <?= (int)$trip['duration_days'] ?> days &bull; <?= (int)$trip['group_size']?> people &bull; Personalized trip plan
+            <?= (int) $trip['duration_days'] ?> days &bull; <?= (int) $trip['group_size'] ?> people &bull; Personalized trip plan
         </p>
     </div>
     <div class="actions">
@@ -135,7 +102,7 @@ require 'header.php';
         
         <!-- Day Tabs Header -->
         <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid #e2e8e3; padding-bottom: 15px; overflow-x: auto;">
-            <?php for ($day = 1; $day <= (int)$trip['duration_days']; $day++): ?>
+            <?php for ($day = 1; $day <= (int) $trip['duration_days']; $day++): ?>
                 <button type="button" class="day-tab-btn <?= $day === 1 ? 'active-tab' : '' ?>" onclick="switchDay(<?= $day ?>)" id="tab-btn-<?= $day ?>" style="padding: 6px 14px; border-radius: 8px; border: 1px solid #dce7df; background: <?= $day === 1 ? '#171b19' : '#f5f8f5' ?>; color: <?= $day === 1 ? '#fff' : '#23352b' ?>; font-weight: bold; font-size: 13px; cursor: pointer; white-space: nowrap;">
                     Day <?= $day ?>
                 </button>
@@ -143,19 +110,19 @@ require 'header.php';
         </div>
 
         <!-- Day Panels with Day Reassignment Option -->
-        <?php for ($day = 1; $day <= (int)$trip['duration_days']; $day++): ?>
+        <?php for ($day = 1; $day <= (int) $trip['duration_days']; $day++): ?>
             <div class="day-panel" id="day-panel-<?= $day ?>" style="display: <?= $day === 1 ? 'block' : 'none' ?>;">
                 
                 <?php
                 $found = false;
                 foreach ($items as $it):
-                    if ((int)$it['day_number'] === $day):
+                    if ((int) $it['day_number'] === $day):
                         $found = true;
                 ?>
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border: 1px solid #e2e8e3; border-radius: 8px; background: #fafcfb; margin-bottom: 10px;">
                         <div>
                             <span style="font-weight: 600; font-size: 14px; display: block;"><?= e($it['name']) ?></span>
-                            <span class="muted" style="font-size: 12px;">₹<?= number_format((float)$it['estimated_cost']) ?></span>
+                            <span class="muted" style="font-size: 12px;">₹<?= number_format((float) $it['estimated_cost']) ?></span>
                         </div>
 
                         <!-- Dropdown to move activity to another day -->
@@ -164,7 +131,7 @@ require 'header.php';
                             <input type="hidden" name="action" value="update_activity_day">
                             <input type="hidden" name="trip_activity_id" value="<?= $it['id'] ?>">
                             <select name="day_number" onchange="this.form.submit()" style="padding: 4px 8px; font-size: 12px; border-radius: 6px; border: 1px solid #ccd8ce;">
-                                <?php for ($d = 1; $d <= (int)$trip['duration_days']; $d++): ?>
+                                <?php for ($d = 1; $d <= (int) $trip['duration_days']; $d++): ?>
                                     <option value="<?= $d ?>" <?= $d === $day ? 'selected' : '' ?>>Day <?= $d ?></option>
                                 <?php endfor; ?>
                             </select>
@@ -193,10 +160,10 @@ require 'header.php';
 
                 <input type="text" name="custom_name" placeholder="Activity name..." required style="padding: 8px; font-size: 13px; border: 1px solid #ccd8ce; border-radius: 6px;">
                 
-                <input type="number" name="custom_cost" placeholder="Cost (Rs.)" min="0" value="0"  style="padding: 8px; font-size: 13px; border: 1px solid #ccd8ce; border-radius: 6px;">
+                <input type="number" name="custom_cost" placeholder="Cost (Rs.)" min="0" value="0" style="padding: 8px; font-size: 13px; border: 1px solid #ccd8ce; border-radius: 6px;">
 
                 <select name="target_day" style="padding: 8px; font-size: 13px; border: 1px solid #ccd8ce; border-radius: 6px;">
-                    <?php for ($d = 1; $d <= (int)$trip['duration_days']; $d++): ?>
+                    <?php for ($d = 1; $d <= (int) $trip['duration_days']; $d++): ?>
                         <option value="<?= $d ?>">Day <?= $d ?></option>
                     <?php endfor; ?>
                 </select>
@@ -210,7 +177,7 @@ require 'header.php';
             <form method="post" style="margin: 0;">
                 <input type="hidden" name="csrf" value="<?= csrf_token() ?>">
                 <input type="hidden" name="action" value="confirm">
-                <button class="btn" style="padding: 10px 16px; font-size: 14px;">Confirm Trip</button>
+                <button type="button" class="btn" onclick="openPaymentModal()" style="padding: 10px 16px; font-size: 14px;">Confirm & Pay</button>
             </form>
 
             <form method="post" data-confirm="Delete this trip permanently?" style="margin: 0;">
@@ -257,6 +224,8 @@ require 'header.php';
 
 </div>
 
+<?php require_once __DIR__ . '/dummy_payment.php'; ?>
+
 <script>
 function switchDay(dayNum) {
     document.querySelectorAll('.day-panel').forEach(panel => {
@@ -274,4 +243,4 @@ function switchDay(dayNum) {
 }
 </script>
 
-<?php require 'footer.php'; ?>
+<?php require_once __DIR__ . '/includes/footer.php'; ?>
