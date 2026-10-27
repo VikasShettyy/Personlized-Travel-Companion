@@ -1,8 +1,3 @@
-CREATE DATABASE IF NOT EXISTS travel_companion
-CHARACTER SET utf8mb4
-COLLATE utf8mb4_unicode_ci;
-
-USE travel_companion;
 
 -- 1. USERS TABLE
 CREATE TABLE IF NOT EXISTS users (
@@ -364,3 +359,59 @@ CREATE TABLE IF NOT EXISTS enquiries (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (destination_id) REFERENCES destinations(id) ON DELETE CASCADE
 );
+
+-- 10. ADMIN OPERATIONS TABLE
+CREATE TABLE IF NOT EXISTS admin_operations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NULL,
+    admin_name VARCHAR(100) NOT NULL DEFAULT 'Admin',
+    operation_type VARCHAR(50) NOT NULL,
+    target_type VARCHAR(50) NOT NULL DEFAULT '',
+    target_id INT NULL DEFAULT NULL,
+    description TEXT NOT NULL,
+    details TEXT NULL,
+    ip_address VARCHAR(45) NOT NULL DEFAULT '',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX (admin_id),
+    INDEX (operation_type),
+    INDEX (created_at)
+);
+
+-- 11. EXTENDED 12 DESTINATIONS & ACTIVITIES (Total 18)
+INSERT IGNORE INTO destinations (name, district, category_id, description, image_url, estimated_cost)
+SELECT 'Badami', 'Bagalkote', id, 'Famous for spectacular 6th-century rock-cut cave temples carved into red sandstone cliffs overlooking Lake Agastya.', 'https://images.unsplash.com/photo-1600100397608-f404fa3a36f9?auto=format&fit=crop&w=800&q=80', 2400.00 FROM categories WHERE name = 'Heritage';
+
+INSERT IGNORE INTO destinations (name, district, category_id, description, image_url, estimated_cost)
+SELECT 'Dandeli', 'Uttara Kannada', id, 'Premier adventure destination renowned for white-water rafting on the Kali River, wildlife sanctuaries, and jungle treks.', 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80', 3800.00 FROM categories WHERE name = 'Adventure';
+
+INSERT IGNORE INTO destinations (name, district, category_id, description, image_url, estimated_cost)
+SELECT 'Udupi', 'Udupi', id, 'Coastal cultural gem celebrated for the sacred Krishna Matha, pristine Malpe beach, and legendary South Indian cuisine.', 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=800&q=80', 2600.00 FROM categories WHERE name = 'Food & Culture';
+
+INSERT IGNORE INTO destinations (name, district, category_id, description, image_url, estimated_cost)
+SELECT 'Belur & Halebidu', 'Hassan', id, 'Twin ancient capitals showcasing the pinnacle of 12th-century Hoysala architecture with intricately carved star-shaped temples.', 'https://images.unsplash.com/photo-1621252179027-94459d278660?auto=format&fit=crop&w=800&q=80', 2500.00 FROM categories WHERE name = 'Heritage';
+
+INSERT IGNORE INTO destinations (name, district, category_id, description, image_url, estimated_cost)
+SELECT 'Jog Falls', 'Shivamogga', id, 'One of Indias most magnificent plunge waterfalls, dropping 253 meters in four distinct cascades amidst dense Western Ghats.', 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80', 2900.00 FROM categories WHERE name = 'Nature';
+
+INSERT IGNORE INTO destinations (name, district, category_id, description, image_url, estimated_cost)
+SELECT 'Bandipur National Park', 'Chamarajanagar', id, 'Famous Project Tiger reserve within the Nilgiri Biosphere, home to elephants, tigers, leopards, and dense teak forests.', 'https://images.unsplash.com/photo-1534177616072-ef7dc120449d?auto=format&fit=crop&w=800&q=80', 4200.00 FROM categories WHERE name = 'Adventure';
+
+INSERT IGNORE INTO destinations (name, district, category_id, description, image_url, estimated_cost)
+SELECT 'Kabini', 'Mysuru', id, 'Enchanting backwaters surrounded by Nagarhole forest, famed for high density of big cats and serene boat safaris.', 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=800&q=80', 4500.00 FROM categories WHERE name = 'Nature';
+
+INSERT IGNORE INTO destinations (name, district, category_id, description, image_url, estimated_cost)
+SELECT 'Murudeshwar', 'Uttara Kannada', id, 'Iconic coastal pilgrimage town featuring the worlds 2nd tallest Lord Shiva statue perched against the azure Arabian Sea.', 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80', 2800.00 FROM categories WHERE name = 'Beaches';
+
+INSERT IGNORE INTO destinations (name, district, category_id, description, image_url, estimated_cost)
+SELECT 'Pattadakal', 'Bagalkote', id, 'UNESCO World Heritage complex showcasing a harmonious blend of Northern Nagara and Southern Dravidian temple architecture.', 'https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?auto=format&fit=crop&w=800&q=80', 2300.00 FROM categories WHERE name = 'Heritage';
+
+INSERT IGNORE INTO destinations (name, district, category_id, description, image_url, estimated_cost)
+SELECT 'Vijayapura', 'Vijayapura', id, 'Historic capital of the Adil Shahi dynasty, famous for Gol Gumbaz with its miraculous acoustic whispering gallery dome.', 'https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?auto=format&fit=crop&w=800&q=80', 2200.00 FROM categories WHERE name = 'Heritage';
+
+INSERT IGNORE INTO destinations (name, district, category_id, description, image_url, estimated_cost)
+SELECT 'Sakleshpur', 'Hassan', id, 'Misty Western Ghats hill station enveloped in coffee plantations, emerald mountain ridges, and the iconic star-shaped fort.', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80', 3100.00 FROM categories WHERE name = 'Nature';
+
+INSERT IGNORE INTO destinations (name, district, category_id, description, image_url, estimated_cost)
+SELECT 'Nandi Hills', 'Chikkaballapur', id, 'Iconic ancient hilltop fortress near Bengaluru renowned for breathtaking sea-of-clouds sunrises and refreshing climate.', 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80', 1800.00 FROM categories WHERE name = 'Relaxation';
+

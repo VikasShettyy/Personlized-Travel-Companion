@@ -1,6 +1,5 @@
 
 <?php
-declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/backend/trips.php';
 
@@ -21,7 +20,7 @@ if (!$trip) {
     redirect('my_trips.php');
 }
 
-// IMPORTANT: Define $escape before using it anywhere in the page.
+// Escape output safely.
 $escape = static function ($value): string {
     return htmlspecialchars(
         (string) $value,
@@ -40,6 +39,7 @@ $form = [
     'group_size' => (string) ($trip['group_size'] ?? '1'),
 ];
 
+// Validate YYYY-MM-DD dates.
 $isValidDate = static function (string $date): bool {
     $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
 
@@ -47,7 +47,7 @@ $isValidDate = static function (string $date): bool {
         && $parsed->format('Y-m-d') === $date;
 };
 
-// Process the submitted form.
+// Handle form submission.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
 
@@ -72,6 +72,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         && is_finite((float) $form['budget'])
         && (float) $form['budget'] >= 0;
 
+    $secDiff = strtotime($endDate) - strtotime($startDate);
+    $days = max(1, floor($secDiff / (60 * 60 * 24)) + 1);
+
     if ($title === '') {
         $error = 'Please enter a trip title.';
     } elseif (strlen($title) > 255) {
@@ -83,6 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Please select valid start and end dates.';
     } elseif ($endDate < $startDate) {
         $error = 'End date cannot be before start date.';
+    } elseif ($days > 10) {
+        $error = 'Trip duration cannot exceed 10 days.';
     } elseif ($groupSize === false) {
         $error = 'Group size must be between 1 and 100.';
     } elseif (!$budgetValid) {
@@ -120,7 +125,7 @@ require_once __DIR__ . '/includes/header.php';
         background: #fff;
         border: 1px solid #dce7df;
         border-radius: 16px;
-        box-shadow: 0 8px 24px rgba(20, 60, 40, .05);
+        box-shadow: 0 8px 24px rgba(20, 60, 40, 0.05);
     }
 
     .edit-trip h1 {
@@ -254,9 +259,7 @@ require_once __DIR__ . '/includes/header.php';
 
     <p class="muted">
         Update the details for
-        <strong>
-            <?= $escape($trip['destination_name'] ?? 'your destination') ?>
-        </strong>.
+        <strong><?= $escape($trip['destination_name'] ?? 'your destination') ?></strong>.
     </p>
 
     <?php if ($error !== ''): ?>
@@ -265,10 +268,8 @@ require_once __DIR__ . '/includes/header.php';
         </div>
     <?php endif; ?>
 
-    <form
-        method="POST"
-        action="edit_trip.php?id=<?= $id ?>"
-    >
+    <form method="POST" action="edit_trip.php?id=<?= $id ?>">
+
         <input
             type="hidden"
             name="csrf"
@@ -360,6 +361,7 @@ require_once __DIR__ . '/includes/header.php';
             </a>
 
         </div>
+
     </form>
 
 </main>
@@ -369,18 +371,30 @@ require_once __DIR__ . '/includes/header.php';
     const endInput = document.getElementById('end_date');
 
     function validateDates() {
-        endInput.min = startInput.value;
+        if (!startInput.value) return;
 
-        if (
-            startInput.value &&
-            endInput.value &&
-            endInput.value < startInput.value
-        ) {
-            endInput.setCustomValidity(
-                'End date cannot be before the start date.'
-            );
-        } else {
-            endInput.setCustomValidity('');
+        const start = new Date(startInput.value);
+        if (isNaN(start.getTime())) return;
+
+        // Restrict end date to max 10 days inclusive (start + 9 days)
+        const maxEnd = new Date(start);
+        maxEnd.setDate(maxEnd.getDate() + 9);
+
+        const minStr = startInput.value;
+        const maxStr = maxEnd.toISOString().split('T')[0];
+
+        endInput.min = minStr;
+        endInput.max = maxStr;
+
+        if (endInput.value) {
+            if (endInput.value < minStr) {
+                endInput.value = minStr;
+            } else if (endInput.value > maxStr) {
+                endInput.value = maxStr;
+                if (typeof window.showCustomAlert === 'function') {
+                    window.showCustomAlert('Trip duration cannot exceed 10 days.', 'warning');
+                }
+            }
         }
     }
 

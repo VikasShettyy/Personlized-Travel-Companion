@@ -190,8 +190,10 @@ require_once __DIR__ . '/includes/header.php';
                     type="email"
                     name="email"
                     id="email_field"
+                    pattern="[A-Za-z0-9._%+-]+@gmail\.com"
+                    title="Please enter an email address ending in @gmail.com"
                     required
-                    placeholder="name@example.com"
+                    placeholder="name@gmail.com"
                     value="<?= e($_POST['email'] ?? '') ?>"
                 >
             </label>

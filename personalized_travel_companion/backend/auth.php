@@ -107,9 +107,16 @@ function auth_request_registration_otp(PDO $pdo, string $name, string $email, st
     if ($name === '') {
         return ['success' => false, 'error' => 'Full name is required.'];
     }
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        return ['success' => false, 'error' => 'Please enter a valid email address.'];
-    }
+   if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    return ['success' => false, 'error' => 'Please enter a valid email address.'];
+}
+
+if (!str_ends_with($email, '@gmail.com')) {
+    return [
+        'success' => false,
+        'error' => 'Only Gmail addresses ending in @gmail.com are allowed.'
+    ];
+}
 
     // Password validation
     $pwdError = validate_password_rules($password, $confirm);

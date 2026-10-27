@@ -4,7 +4,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    const TABS = ['overview', 'destinations', 'categories', 'activities', 'enquiries', 'security'];
+    const TABS = ['overview', 'destinations', 'categories', 'activities', 'enquiries', 'operations', 'security'];
 
     /* ---------- Toast Notifications System ---------- */
 
@@ -570,6 +570,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `Activity ${i + 1}: ${name} in ${dest}, cost: ${cost}`;
                 }).join('. ');
                 return { text: countText + summary, context: 'Activities Section' };
+            }
+
+            if (tabId === 'panel-operations') {
+                const rows = [...activeTabPane.querySelectorAll('#operations-table tbody tr[data-search]')].filter(r => !r.hidden);
+                const countText = `Admin Operations Section. Showing ${rows.length} operations. `;
+                const summary = rows.slice(0, 5).map((r, i) => {
+                    const op = r.querySelector('[data-label="Operation"]')?.textContent?.trim() || '';
+                    const desc = r.querySelector('[data-label="Description"]')?.textContent?.trim() || '';
+                    const admin = r.querySelector('[data-label="Administrator"]')?.textContent?.trim() || '';
+                    return `Log ${i + 1}: ${op} by ${admin}, ${desc}`;
+                }).join('. ');
+                return { text: countText + summary, context: 'Admin Operations Section' };
             }
 
             if (tabId === 'panel-security') {

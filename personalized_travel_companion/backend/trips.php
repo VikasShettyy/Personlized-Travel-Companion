@@ -4,18 +4,52 @@ declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 
 /**
+ * Automatically synchronize trip statuses based on current date for non-draft trips.
+ * If start_date <= today <= end_date, the trip is 'active'.
+ * If start_date > today, the trip is 'upcoming'.
+ * If end_date < today, the trip is 'past'.
+ */
+function sync_trip_statuses(PDO $pdo, ?int $userId = null): void
+{
+    try {
+        $sql = "
+            UPDATE trips
+            SET status = CASE
+                WHEN end_date < CURDATE() THEN 'past'
+                WHEN start_date <= CURDATE() AND end_date >= CURDATE() THEN 'active'
+                ELSE 'upcoming'
+            END
+            WHERE status != 'draft' AND start_date IS NOT NULL AND end_date IS NOT NULL
+        ";
+        if ($userId !== null && $userId > 0) {
+            $sql .= " AND user_id = ?";
+            $pdo->prepare($sql)->execute([$userId]);
+        } else {
+            $pdo->exec($sql);
+        }
+    } catch (Throwable $e) {
+        // Table or sync fallback handled gracefully
+    }
+}
+
+/**
  * Retrieve user trip statistics (counts by category/status).
  */
 function get_user_trip_counts(PDO $pdo, int $userId): array
 {
+    sync_trip_statuses($pdo, $userId);
+
     $stmt = $pdo->prepare(
         "SELECT
             COUNT(*) AS total,
             COALESCE(SUM(
-                CASE WHEN status != 'draft' AND end_date >= CURDATE() THEN 1 ELSE 0 END
+                CASE WHEN status = 'active' THEN 1 ELSE 0 END
+            ), 0) AS active_count,
+            COALESCE(SUM(
+                CASE WHEN status = 'upcoming' THEN 1 ELSE 0 END
             ), 0) AS upcoming_count,
             COALESCE(SUM(
-                CASE WHEN status != 'draft' AND end_date < CURDATE() THEN 1 ELSE 0 END
+                CASE WHEN status = 'past' THEN 1 ELSE 0 END
             ), 0) AS past_count,
             COALESCE(SUM(
                 CASE WHEN status = 'draft' THEN 1 ELSE 0 END
@@ -26,6 +60,7 @@ function get_user_trip_counts(PDO $pdo, int $userId): array
     $stmt->execute([$userId]);
     return $stmt->fetch() ?: [
         'total' => 0,
+        'active_count' => 0,
         'upcoming_count' => 0,
         'past_count' => 0,
         'draft_count' => 0,
@@ -33,13 +68,15 @@ function get_user_trip_counts(PDO $pdo, int $userId): array
 }
 
 /**
- * Retrieve user trips filtered by upcoming, past, or draft.
+ * Retrieve user trips filtered by active, upcoming, past, or draft.
  */
-function get_user_trips(PDO $pdo, int $userId, string $filter = 'upcoming'): array
+function get_user_trips(PDO $pdo, int $userId, string $filter = 'active'): array
 {
-    $allowed = ['upcoming', 'past', 'draft'];
+    sync_trip_statuses($pdo, $userId);
+
+    $allowed = ['active', 'upcoming', 'past', 'draft'];
     if (!in_array($filter, $allowed, true)) {
-        $filter = 'upcoming';
+        $filter = 'active';
     }
 
     $sql = "SELECT
@@ -54,10 +91,12 @@ function get_user_trips(PDO $pdo, int $userId, string $filter = 'upcoming'): arr
 
     $params = [$userId];
 
-    if ($filter === 'upcoming') {
-        $sql .= " AND t.status != 'draft' AND t.end_date >= CURDATE()";
+    if ($filter === 'active') {
+        $sql .= " AND t.status = 'active'";
+    } elseif ($filter === 'upcoming') {
+        $sql .= " AND t.status = 'upcoming'";
     } elseif ($filter === 'past') {
-        $sql .= " AND t.status != 'draft' AND t.end_date < CURDATE()";
+        $sql .= " AND t.status = 'past'";
     } else {
         $sql .= " AND t.status = 'draft'";
     }
@@ -88,6 +127,10 @@ function create_trip(PDO $pdo, int $userId, array $data): int
 
     $secDiff = strtotime($endDate) - strtotime($startDate);
     $days = max(1, floor($secDiff / (60 * 60 * 24)) + 1);
+
+    if ($days > 10) {
+        throw new InvalidArgumentException('Trip duration cannot exceed 10 days.');
+    }
 
     $pdo->beginTransaction();
     try {
@@ -132,6 +175,8 @@ function create_trip(PDO $pdo, int $userId, array $data): int
  */
 function get_trip_details(PDO $pdo, int $tripId, int $userId): ?array
 {
+    sync_trip_statuses($pdo, $userId);
+
     $stmt = $pdo->prepare(
         'SELECT t.*, d.name AS destination_name, d.estimated_cost AS destination_base_cost
          FROM trips t
@@ -192,9 +237,13 @@ function update_trip(PDO $pdo, int $tripId, int $userId, array $data): bool
     $secDiff = strtotime($endDate) - strtotime($startDate);
     $days = max(1, floor($secDiff / (60 * 60 * 24)) + 1);
 
+    if ($days > 10) {
+        throw new InvalidArgumentException('Trip duration cannot exceed 10 days.');
+    }
+
     $stmt = $pdo->prepare(
         'UPDATE trips
-         SET title = ?, start_date = ?, end_date = ?, duration_days = ?, group_size = ?, budget = ?
+         SET title = ?, start_date = ?, end_date = ?, duration_days = ?, group_size = ?, budget = ?, status = "draft"
          WHERE id = ? AND user_id = ?'
     );
     return $stmt->execute([
@@ -210,12 +259,28 @@ function update_trip(PDO $pdo, int $tripId, int $userId, array $data): bool
 }
 
 /**
- * Confirm a trip (transitions status from draft to upcoming).
+ * Confirm a trip (transitions status from draft to active, upcoming, or past based on dates).
  */
 function confirm_trip(PDO $pdo, int $tripId, int $userId): bool
 {
-    $stmt = $pdo->prepare("UPDATE trips SET status = 'upcoming' WHERE id = ? AND user_id = ?");
-    return $stmt->execute([$tripId, $userId]);
+    $stmt = $pdo->prepare("SELECT start_date, end_date FROM trips WHERE id = ? AND user_id = ?");
+    $stmt->execute([$tripId, $userId]);
+    $t = $stmt->fetch();
+
+    $today = date('Y-m-d');
+    $status = 'upcoming';
+    if ($t && !empty($t['start_date']) && !empty($t['end_date'])) {
+        if ($t['end_date'] < $today) {
+            $status = 'past';
+        } elseif ($t['start_date'] <= $today && $t['end_date'] >= $today) {
+            $status = 'active';
+        } else {
+            $status = 'upcoming';
+        }
+    }
+
+    $updateStmt = $pdo->prepare("UPDATE trips SET status = ? WHERE id = ? AND user_id = ?");
+    return $updateStmt->execute([$status, $tripId, $userId]);
 }
 
 /**

@@ -52,6 +52,23 @@ function get_admin_dashboard_data(PDO $pdo): array
     $enquiries = get_admin_enquiries($pdo);
     $pendingEnquiriesCount = get_pending_enquiries_count($pdo);
 
+    require_once __DIR__ . '/admin_actions.php';
+    ensure_admin_operations_table($pdo);
+
+    $operations = [];
+    try {
+        $opStmt = $pdo->query(
+            'SELECT ao.*, u.email AS admin_email
+             FROM admin_operations ao
+             LEFT JOIN users u ON u.id = ao.admin_id
+             ORDER BY ao.created_at DESC
+             LIMIT 200'
+        );
+        $operations = $opStmt->fetchAll();
+    } catch (Throwable $e) {
+        $operations = [];
+    }
+
     return [
         'categories'            => $categories,
         'destinations'          => $destinations,
@@ -62,5 +79,30 @@ function get_admin_dashboard_data(PDO $pdo): array
         'maxCategory'           => $maxCategory,
         'enquiries'             => $enquiries,
         'pendingEnquiriesCount' => $pendingEnquiriesCount,
+        'operations'            => $operations,
     ];
+}
+
+/**
+ * Retrieve admin operations audit log.
+ */
+function get_admin_operations(PDO $pdo, int $limit = 200): array
+{
+    require_once __DIR__ . '/admin_actions.php';
+    ensure_admin_operations_table($pdo);
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT ao.*, u.email AS admin_email
+             FROM admin_operations ao
+             LEFT JOIN users u ON u.id = ao.admin_id
+             ORDER BY ao.created_at DESC
+             LIMIT ?'
+        );
+        $stmt->bindValue(1, $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
 }

@@ -50,6 +50,77 @@ function clean_text(string $value, string $label, int $max, bool $required = tru
 }
 
 /**
+ * Ensure the admin_operations table exists in the database.
+ */
+function ensure_admin_operations_table(PDO $pdo): void
+{
+    static $ensured = false;
+    if ($ensured) {
+        return;
+    }
+
+    try {
+        $pdo->exec(
+            "CREATE TABLE IF NOT EXISTS admin_operations (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                admin_id INT NULL,
+                admin_name VARCHAR(100) NOT NULL DEFAULT 'Admin',
+                operation_type VARCHAR(50) NOT NULL,
+                target_type VARCHAR(50) NOT NULL DEFAULT '',
+                target_id INT NULL DEFAULT NULL,
+                description TEXT NOT NULL,
+                details TEXT NULL,
+                ip_address VARCHAR(45) NOT NULL DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX (admin_id),
+                INDEX (operation_type),
+                INDEX (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
+        $ensured = true;
+    } catch (Throwable $e) {
+        // Table creation fallback handled gracefully
+    }
+}
+
+/**
+ * Record an entry into the admin operations audit table.
+ */
+function log_admin_operation(
+    PDO $pdo,
+    string $operationType,
+    string $targetType,
+    ?int $targetId,
+    string $description,
+    ?string $details = null
+): void {
+    try {
+        ensure_admin_operations_table($pdo);
+
+        $adminId = isset($_SESSION['user']['id']) ? (int) $_SESSION['user']['id'] : null;
+        $adminName = (string) ($_SESSION['user']['full_name'] ?? 'Admin');
+        $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO admin_operations (admin_id, admin_name, operation_type, target_type, target_id, description, details, ip_address)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([
+            $adminId,
+            $adminName,
+            $operationType,
+            $targetType,
+            $targetId,
+            $description,
+            $details,
+            $ip,
+        ]);
+    } catch (Throwable $e) {
+        error_log('Failed to record admin operation: ' . $e->getMessage());
+    }
+}
+
+/**
  * Handle admin POST actions.
  * Returns array: ['success' => bool, 'message' => string, 'tab' => string, 'error' => string]
  */
@@ -61,7 +132,7 @@ function handle_admin_action(PDO $pdo): ?array
 
     verify_csrf();
 
-    $validTabs = ['overview', 'destinations', 'categories', 'activities', 'enquiries', 'security'];
+    $validTabs = ['overview', 'destinations', 'categories', 'activities', 'enquiries', 'operations', 'security'];
     $action = $_POST['action'] ?? '';
     $tab = in_array($_POST['tab'] ?? '', $validTabs, true) ? $_POST['tab'] : 'overview';
     $id = (int) ($_POST['id'] ?? 0);
@@ -77,6 +148,7 @@ function handle_admin_action(PDO $pdo): ?array
                 if (!$res['success']) {
                     throw new RuntimeException($res['error']);
                 }
+                log_admin_operation($pdo, 'Enquiry Reply', 'enquiry', $id, "Replied to enquiry #$id", mb_substr($replyText, 0, 200));
                 $msg = 'Reply sent to traveler and recorded in dashboard.';
                 break;
 
@@ -86,15 +158,19 @@ function handle_admin_action(PDO $pdo): ?array
 
                 if ($action === 'category_add') {
                     $pdo->prepare('INSERT INTO categories(name) VALUES(?)')->execute([$name]);
+                    $newCatId = (int) $pdo->lastInsertId();
+                    log_admin_operation($pdo, 'Category Add', 'category', $newCatId, "Added category '$name'");
                     $msg = 'Category added.';
                 } else {
                     $pdo->prepare('UPDATE categories SET name = ? WHERE id = ?')->execute([$name, $id]);
+                    log_admin_operation($pdo, 'Category Update', 'category', $id, "Updated category #$id to '$name'");
                     $msg = 'Category updated.';
                 }
                 break;
 
             case 'category_delete':
                 $pdo->prepare('DELETE FROM categories WHERE id = ?')->execute([$id]);
+                log_admin_operation($pdo, 'Category Delete', 'category', $id, "Deleted category (ID #$id)");
                 $msg = 'Category deleted. Its destinations are now uncategorised.';
                 break;
 
@@ -154,6 +230,8 @@ function handle_admin_action(PDO $pdo): ?array
                         'INSERT INTO destinations (name, district, category_id, description, image_url, estimated_cost)
                          VALUES (?, ?, ?, ?, ?, ?)'
                     )->execute([$name, $district, $cat ?: null, $desc, $img, $cost]);
+                    $newDestId = (int) $pdo->lastInsertId();
+                    log_admin_operation($pdo, 'Destination Add', 'destination', $newDestId, "Added destination '$name' (District: $district, Cost: ₹$cost)");
                     $msg = 'Destination added.';
                 } else {
                     $pdo->prepare(
@@ -161,6 +239,7 @@ function handle_admin_action(PDO $pdo): ?array
                          SET name = ?, district = ?, category_id = ?, description = ?, image_url = ?, estimated_cost = ?
                          WHERE id = ?'
                     )->execute([$name, $district, $cat ?: null, $desc, $img, $cost, $id]);
+                    log_admin_operation($pdo, 'Destination Update', 'destination', $id, "Updated destination '$name' (ID #$id, Cost: ₹$cost)");
                     $msg = 'Destination updated.';
                 }
                 break;
@@ -174,6 +253,7 @@ function handle_admin_action(PDO $pdo): ?array
                 }
 
                 $pdo->prepare('DELETE FROM destinations WHERE id = ?')->execute([$id]);
+                log_admin_operation($pdo, 'Destination Delete', 'destination', $id, "Deleted destination (ID #$id)");
                 $msg = 'Destination and its activities deleted.';
                 break;
 
@@ -193,6 +273,8 @@ function handle_admin_action(PDO $pdo): ?array
                         'INSERT INTO activities (destination_id, name, description, estimated_cost)
                          VALUES (?, ?, ?, ?)'
                     )->execute([$dest, $name, $desc, $cost]);
+                    $newActId = (int) $pdo->lastInsertId();
+                    log_admin_operation($pdo, 'Activity Add', 'activity', $newActId, "Added activity '$name' for destination ID #$dest (Cost: ₹$cost)");
                     $msg = 'Activity added.';
                 } else {
                     $pdo->prepare(
@@ -200,12 +282,14 @@ function handle_admin_action(PDO $pdo): ?array
                          SET destination_id = ?, name = ?, description = ?, estimated_cost = ?
                          WHERE id = ?'
                     )->execute([$dest, $name, $desc, $cost, $id]);
+                    log_admin_operation($pdo, 'Activity Update', 'activity', $id, "Updated activity '$name' (ID #$id, Cost: ₹$cost)");
                     $msg = 'Activity updated.';
                 }
                 break;
 
             case 'activity_delete':
                 $pdo->prepare('DELETE FROM activities WHERE id = ?')->execute([$id]);
+                log_admin_operation($pdo, 'Activity Delete', 'activity', $id, "Deleted activity (ID #$id)");
                 $msg = 'Activity deleted.';
                 break;
 
@@ -267,6 +351,7 @@ function handle_admin_action(PDO $pdo): ?array
                 $updateStmt = $pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?');
                 $updateStmt->execute([$newHash, $adminId]);
                 session_regenerate_id(true);
+                log_admin_operation($pdo, 'Password Change', 'security', $adminId, "Administrator changed account password");
                 $msg = 'Password updated successfully.';
                 break;
 

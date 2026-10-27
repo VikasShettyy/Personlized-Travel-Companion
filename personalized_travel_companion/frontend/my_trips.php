@@ -9,14 +9,21 @@ require_login();
 $pageTitle = 'My Trips & Enquiries';
 $userId = (int) $_SESSION['user']['id'];
 $userEmail = (string) ($_SESSION['user']['email'] ?? '');
-$filter = strtolower(trim($_GET['filter'] ?? 'upcoming'));
-
-$allowedFilters = ['upcoming', 'past', 'draft', 'enquiries'];
-if (!in_array($filter, $allowedFilters, true)) {
-    $filter = 'upcoming';
-}
+$filter = strtolower(trim($_GET['filter'] ?? ''));
 
 $counts = get_user_trip_counts($pdo, $userId);
+
+$allowedFilters = ['active', 'upcoming', 'past', 'draft', 'enquiries'];
+if (!in_array($filter, $allowedFilters, true)) {
+    if ((int) $counts['active_count'] > 0) {
+        $filter = 'active';
+    } elseif ((int) $counts['upcoming_count'] > 0) {
+        $filter = 'upcoming';
+    } else {
+        $filter = 'active';
+    }
+}
+
 $trips = ($filter !== 'enquiries') ? get_user_trips($pdo, $userId, $filter) : [];
 $userEnquiries = get_user_enquiries($pdo, $userId, $userEmail);
 
@@ -30,12 +37,39 @@ if (empty($userAvatar)) {
     } catch (Throwable $e) {}
 }
 
+$confirmedDialog = $_SESSION['trip_confirmed_dialog'] ?? null;
+unset($_SESSION['trip_confirmed_dialog']);
+
 $extraHead = '
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 ';
 
 require_once __DIR__ . '/includes/header.php';
 ?>
+
+<?php if ($confirmedDialog): ?>
+    <!-- Trip Confirmed Dialogue Box -->
+    <div id="confirmedSuccessModal" style="display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1100; justify-content:center; align-items:center; backdrop-filter:blur(3px);">
+        <div style="background:#fff; padding:35px 30px; border-radius:16px; width:100%; max-width:440px; box-shadow:0 12px 40px rgba(0,0,0,0.25); text-align:center;">
+            <div style="width:72px; height:72px; margin:0 auto 16px; background:#e8f7ee; border:3px solid #1f7a4d; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                <svg style="width:40px; height:40px; color:#1f7a4d;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            <h2 style="margin:0 0 8px; font-size:24px; color:#183c2b; font-weight:800;">Trip Confirmed!</h2>
+            <p style="margin:0 0 16px; font-size:14px; color:#55695d; line-height:1.5;">
+                Payment simulation successful! Your trip to <strong style="color:#183c2b;"><?= e($confirmedDialog['destination'] ?? 'your destination') ?></strong> is confirmed.
+            </p>
+            <div style="background:#f4f9f6; border:1px solid #d8e8dc; border-radius:10px; padding:12px 16px; margin-bottom:20px; font-size:13px; color:#263b2e; text-align:left;">
+                <div><strong>Trip:</strong> <?= e($confirmedDialog['title'] ?? 'Personalized Journey') ?></div>
+                <div><strong>Status:</strong> <span style="color:#059669; font-weight:700;">Confirmed (<?= e(ucfirst($confirmedDialog['status'] ?? 'Active')) ?>)</span></div>
+            </div>
+            <button type="button" onclick="document.getElementById('confirmedSuccessModal').style.display='none'" class="btn" style="display:block; width:100%; box-sizing:border-box; padding:12px; background:#1f7a4d; color:#fff; border:none; border-radius:8px; font-weight:bold; font-size:14px; cursor:pointer;">
+                Great, View My Trips
+            </button>
+        </div>
+    </div>
+<?php endif; ?>
 
 <section class="dashboard-profile card">
 
@@ -74,6 +108,11 @@ require_once __DIR__ . '/includes/header.php';
                 <strong><?= (int) $counts['total'] ?></strong>
                 saved
                 <?= (int) $counts['total'] === 1 ? 'trip' : 'trips' ?>
+            </span>
+
+            <span>
+                <strong><?= (int) $counts['active_count'] ?></strong>
+                active
             </span>
 
             <span>
@@ -117,6 +156,14 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 
 <nav class="trip-tabs" aria-label="Filter trips">
+
+    <a
+        class="<?= $filter === 'active' ? 'active' : '' ?>"
+        href="my_trips.php?filter=active"
+    >
+        Active Trips
+        <span><?= (int) $counts['active_count'] ?></span>
+    </a>
 
     <a
         class="<?= $filter === 'upcoming' ? 'active' : '' ?>"
@@ -252,7 +299,9 @@ require_once __DIR__ . '/includes/header.php';
             <div class="empty-icon">✈</div>
 
             <h3>
-                <?php if ($filter === 'upcoming'): ?>
+                <?php if ($filter === 'active'): ?>
+                    No active trips right now
+                <?php elseif ($filter === 'upcoming'): ?>
                     No upcoming trips yet
                 <?php elseif ($filter === 'past'): ?>
                     No past trips yet
@@ -262,7 +311,9 @@ require_once __DIR__ . '/includes/header.php';
             </h3>
 
             <p>
-                <?php if ($filter === 'draft'): ?>
+                <?php if ($filter === 'active'): ?>
+                    Confirmed trips scheduled during today's dates will appear here as active.
+                <?php elseif ($filter === 'draft'): ?>
                     Start planning a journey and save it as a draft
                     to see it here.
                 <?php else: ?>
@@ -323,6 +374,9 @@ require_once __DIR__ . '/includes/header.php';
                                 }
                             ?>
                             <span class="tag status-<?= strtolower($displayStatus) ?>">
+                                <?php if ($displayStatus === 'Active'): ?>
+                                    <i class="bi bi-geo-alt-fill" style="margin-right: 3px; font-size: 11px;"></i>
+                                <?php endif; ?>
                                 <?= e($displayStatus) ?>
                             </span>
 

@@ -23,6 +23,7 @@ $recentTrips  = $data['recentTrips'];
 $maxCategory  = $data['maxCategory'];
 $enquiries    = $data['enquiries'];
 $pendingEnquiriesCount = $data['pendingEnquiriesCount'];
+$operations   = $data['operations'] ?? [];
 
 $extraHead = '
     <link rel="stylesheet"
@@ -121,6 +122,12 @@ function admin_fields(string $action, string $tab): void
                     <span><?= count($enquiries) ?></span>
                 <?php endif; ?>
             </button>
+            <button class="nav-link" id="tab-operations" type="button"
+                    role="tab" data-bs-toggle="pill" data-bs-target="#panel-operations"
+                    aria-controls="panel-operations" aria-selected="false" tabindex="-1">
+                <i class="bi bi-clock-history" aria-hidden="true"></i> Admin Operations
+                <span><?= count($operations) ?></span>
+            </button>
             <button class="nav-link" id="tab-security" type="button"
                     role="tab" data-bs-toggle="pill" data-bs-target="#panel-security"
                     aria-controls="panel-security" aria-selected="false" tabindex="-1">
@@ -144,6 +151,7 @@ function admin_fields(string $action, string $tab): void
                     ['Categories', count($categories), 'bi-tags'],
                     ['Activities', count($activities), 'bi-compass'],
                     ['Enquiries', count($enquiries), 'bi-chat-left-text'],
+                    ['Operations', count($operations), 'bi-clock-history'],
                     ['Users', $users, 'bi-people'],
                     ['Trips', $trips, 'bi-suitcase2'],
                 ];
@@ -612,6 +620,127 @@ function admin_fields(string $action, string $tab): void
 
                         <tr class="no-results" <?= $enquiries ? 'hidden' : '' ?>>
                             <td colspan="6" class="empty">No enquiries found.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ============ ADMIN OPERATIONS ============ -->
+        <section class="tab-pane fade" id="panel-operations" role="tabpanel"
+                 aria-labelledby="tab-operations" tabindex="0">
+
+            <header class="admin-section-head">
+                <div>
+                    <h2>Admin Operations Log</h2>
+                    <p class="muted smalltext">
+                        Complete audit record of administrative operations, content updates, and system activities.
+                    </p>
+                </div>
+            </header>
+
+            <div class="admin-toolbar">
+                <label for="operations-filter">
+                    Search operations
+                    <input type="search" id="operations-filter"
+                           placeholder="Filter by operation, admin, or description..."
+                           data-filter-table="operations-table"
+                           data-filter-count="operations-count"
+                           data-filter-noun="operations">
+                </label>
+            </div>
+
+            <p class="smalltext" id="operations-count" role="status">
+                Showing <?= count($operations) ?> of <?= count($operations) ?> operations.
+            </p>
+
+            <div class="table-wrap">
+                <table class="admin-table" id="operations-table">
+                    <caption class="visually-hidden">
+                        Audit table showing admin operation history, users, targets, and dates
+                    </caption>
+                    <thead>
+                        <tr>
+                            <th scope="col" style="width: 50px;">#</th>
+                            <th scope="col" style="width: 160px;">Date &amp; Time</th>
+                            <th scope="col" style="width: 140px;">Administrator</th>
+                            <th scope="col" style="width: 150px;">Operation</th>
+                            <th scope="col" style="width: 110px;">Target</th>
+                            <th scope="col">Description &amp; Details</th>
+                            <th scope="col" style="width: 130px;">IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($operations as $idx => $op):
+                            $type = $op['operation_type'] ?? '';
+                            $badgeColor = '#247653';
+                            $badgeBg = '#eaf6ef';
+
+                            if (str_contains($type, 'Delete')) {
+                                $badgeColor = '#a83232';
+                                $badgeBg = '#feebeb';
+                            } elseif (str_contains($type, 'Update')) {
+                                $badgeColor = '#1d4ed8';
+                                $badgeBg = '#eff6ff';
+                            } elseif (str_contains($type, 'Reply')) {
+                                $badgeColor = '#6b21a8';
+                                $badgeBg = '#f3e8ff';
+                            } elseif (str_contains($type, 'Password')) {
+                                $badgeColor = '#b45309';
+                                $badgeBg = '#fef3c7';
+                            }
+                            $searchText = strtolower($op['operation_type'] . ' ' . $op['admin_name'] . ' ' . ($op['admin_email'] ?? '') . ' ' . $op['target_type'] . ' ' . $op['description'] . ' ' . ($op['details'] ?? '') . ' ' . $op['ip_address']);
+                        ?>
+                            <tr data-search="<?= e($searchText) ?>">
+                                <td data-label="#">
+                                    <span class="muted smalltext">#<?= (int) ($op['id'] ?? ($idx + 1)) ?></span>
+                                </td>
+                                <td data-label="Date & Time">
+                                    <strong style="display: block; font-size: 13px;">
+                                        <?= date('d M Y', strtotime($op['created_at'])) ?>
+                                    </strong>
+                                    <span class="muted smalltext">
+                                        <?= date('h:i:s A', strtotime($op['created_at'])) ?>
+                                    </span>
+                                </td>
+                                <td data-label="Administrator">
+                                    <strong style="font-size: 13px;"><?= e($op['admin_name']) ?></strong>
+                                    <?php if (!empty($op['admin_email'])): ?>
+                                        <span class="muted smalltext" style="display: block; font-size: 11px;">
+                                            <?= e($op['admin_email']) ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
+                                <td data-label="Operation">
+                                    <span class="tag" style="background: <?= $badgeBg ?>; color: <?= $badgeColor ?>; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px;">
+                                        <?= e($op['operation_type']) ?>
+                                    </span>
+                                </td>
+                                <td data-label="Target">
+                                    <span class="tag secondary" style="font-size: 11px; text-transform: uppercase;">
+                                        <?= e($op['target_type'] ?: 'system') ?>
+                                    </span>
+                                </td>
+                                <td data-label="Description">
+                                    <div style="font-size: 13px; color: #23352b; font-weight: 500;">
+                                        <?= e($op['description']) ?>
+                                    </div>
+                                    <?php if (!empty($op['details'])): ?>
+                                        <div class="muted smalltext" style="margin-top: 3px; font-size: 12px; color: #68776e;">
+                                            <?= e($op['details']) ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
+                                <td data-label="IP Address">
+                                    <code style="font-size: 11px; padding: 2px 6px; background: #f0f4f1; border-radius: 4px; color: #36493f;">
+                                        <?= e($op['ip_address'] ?: '127.0.0.1') ?>
+                                    </code>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+
+                        <tr class="no-results" <?= $operations ? 'hidden' : '' ?>>
+                            <td colspan="7" class="empty">No admin operations logged yet.</td>
                         </tr>
                     </tbody>
                 </table>

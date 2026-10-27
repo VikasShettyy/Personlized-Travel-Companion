@@ -5,11 +5,18 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$host = 'localhost';
-$db   = 'travel_companion';
-$user = 'root';
-$pass = '';
+$host = 'sql306.infinityfree.com';
+$db   = 'if0_43270553_database';
+$user = 'if0_43270553';
+$pass = 'FfKT1RbWJ6gQ50o';
 $charset = 'utf8mb4';
+
+// $host = 'localhost';
+// $db   = 'travel_companion';
+// $user = 'root';
+// $pass = '';
+// $charset = 'utf8mb4';
+
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
 $options = [
