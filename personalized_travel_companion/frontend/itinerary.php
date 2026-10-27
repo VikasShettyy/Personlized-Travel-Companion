@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tripActivityId = (int) ($_POST['trip_activity_id'] ?? 0);
         $dayNumber = (int) ($_POST['day_number'] ?? 1);
         update_trip_activity_day($pdo, $id, $tripActivityId, $dayNumber);
-        redirect('itinerary.php?id=' . $id);
+        redirect('itinerary.php?id=' . $id . '&day=' . $dayNumber);
     }
 
     if ($action === 'expense') {
@@ -76,6 +76,10 @@ $expenses = get_trip_expenses($pdo, $id);
 
 // Calculations - Day-dependent expense
 $duration = max(1, (int) ($trip['duration_days'] ?? 1));
+$activeDay = (int) ($_GET['day'] ?? 1);
+if ($activeDay < 1 || $activeDay > $duration) {
+    $activeDay = 1;
+}
 $groupSize = max(1, (int) ($trip['group_size'] ?? 1));
 $baseCostPerPerson = (float) $trip['destination_base_cost'];
 
@@ -137,18 +141,42 @@ require_once __DIR__ . '/includes/header.php';
     <!-- Left Column: Day-wise Itinerary -->
     <div class="card" style="background: #fff; border: 1px solid #dce7df; border-radius: 14px; padding: 22px;">
         
-        <!-- Day Tabs Header -->
-        <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid #e2e8e3; padding-bottom: 15px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch;">
-            <?php for ($day = 1; $day <= (int) $trip['duration_days']; $day++): ?>
-                <button type="button" class="day-tab-btn <?= $day === 1 ? 'active-tab' : '' ?>" onclick="switchDay(<?= $day ?>)" id="tab-btn-<?= $day ?>" style="padding: 6px 14px; border-radius: 8px; border: 1px solid #dce7df; background: <?= $day === 1 ? '#171b19' : '#f5f8f5' ?>; color: <?= $day === 1 ? '#fff' : '#23352b' ?>; font-weight: bold; font-size: 13px; cursor: pointer; white-space: nowrap;">
-                    Day <?= $day ?>
-                </button>
-            <?php endfor; ?>
+        <!-- Day Selector Dropdown (Replaces horizontal tab buttons to prevent mobile UI overflow) -->
+        <div style="margin-bottom: 20px; border-bottom: 1px solid #e2e8e3; padding-bottom: 16px;">
+            <label for="daySelectDropdown" style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 13px; color: #23352b; margin-bottom: 8px;">
+                <span>📅 Select Itinerary Day:</span>
+                <span class="muted" style="font-weight: 500; font-size: 12px;"><?= $duration ?> <?= $duration === 1 ? 'Day Total' : 'Days Total' ?></span>
+            </label>
+            <div style="position: relative; width: 100%;">
+                <select
+                    id="daySelectDropdown"
+                    onchange="switchDay(this.value)"
+                    aria-label="Select itinerary day"
+                    style="width: 100%; box-sizing: border-box; padding: 11px 14px; font-size: 14.5px; font-weight: 600; color: #173b2a; background: #f4f8f5; border: 1.5px solid #bcd4c4; border-radius: 9px; cursor: pointer; outline: none; transition: border-color 0.2s;"
+                >
+                    <?php for ($day = 1; $day <= $duration; $day++): 
+                        $dayActivityCount = count(array_filter($items, fn($it) => (int)$it['day_number'] === $day));
+                    ?>
+                        <option value="<?= $day ?>" <?= $day === $activeDay ? 'selected' : '' ?>>
+                            Day <?= $day ?> (<?= $dayActivityCount ?> <?= $dayActivityCount === 1 ? 'activity' : 'activities' ?>)
+                        </option>
+                    <?php endfor; ?>
+                </select>
+            </div>
         </div>
 
         <!-- Day Panels with Day Reassignment Option -->
-        <?php for ($day = 1; $day <= (int) $trip['duration_days']; $day++): ?>
-            <div class="day-panel" id="day-panel-<?= $day ?>" style="display: <?= $day === 1 ? 'block' : 'none' ?>;">
+        <?php for ($day = 1; $day <= $duration; $day++): 
+            $dayActivityCount = count(array_filter($items, fn($it) => (int)$it['day_number'] === $day));
+        ?>
+            <div class="day-panel" id="day-panel-<?= $day ?>" style="display: <?= $day === $activeDay ? 'block' : 'none' ?>;">
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px dashed #e2e8e3;">
+                    <h3 style="margin: 0; font-size: 16px; color: #183c2b; font-weight: 700;">Day <?= $day ?> Schedule</h3>
+                    <span class="tag" style="background: #eaf6ef; color: #17683e; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 12px;">
+                        <?= $dayActivityCount ?> <?= $dayActivityCount === 1 ? 'activity' : 'activities' ?>
+                    </span>
+                </div>
                 
                 <?php
                 $found = false;
@@ -276,18 +304,26 @@ require_once __DIR__ . '/includes/header.php';
 
 <script>
 function switchDay(dayNum) {
+    dayNum = parseInt(dayNum, 10);
     document.querySelectorAll('.day-panel').forEach(panel => {
         panel.style.display = 'none';
     });
-    document.querySelectorAll('.day-tab-btn').forEach(btn => {
-        btn.style.background = '#f5f8f5';
-        btn.style.color = '#23352b';
-    });
 
-    document.getElementById('day-panel-' + dayNum).style.display = 'block';
-    const activeBtn = document.getElementById('tab-btn-' + dayNum);
-    activeBtn.style.background = '#171b19';
-    activeBtn.style.color = '#fff';
+    const targetPanel = document.getElementById('day-panel-' + dayNum);
+    if (targetPanel) {
+        targetPanel.style.display = 'block';
+    }
+
+    const dropdown = document.getElementById('daySelectDropdown');
+    if (dropdown && parseInt(dropdown.value, 10) !== dayNum) {
+        dropdown.value = dayNum;
+    }
+
+    if (window.history && window.history.replaceState) {
+        const url = new URL(window.location);
+        url.searchParams.set('day', dayNum);
+        window.history.replaceState({}, '', url);
+    }
 }
 </script>
 

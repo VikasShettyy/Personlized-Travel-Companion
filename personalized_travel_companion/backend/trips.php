@@ -121,8 +121,9 @@ function create_trip(PDO $pdo, int $userId, array $data): int
     $budget = max(0, (float) ($data['budget'] ?? 0));
     $selectedActivities = (array) ($data['activities'] ?? []);
 
-    if ($startDate === '' || $endDate === '' || $endDate < $startDate) {
-        throw new InvalidArgumentException('Invalid trip dates.');
+    $today = date('Y-m-d');
+    if ($startDate === '' || $endDate === '' || $endDate < $startDate || $startDate < $today || $endDate < $today) {
+        throw new InvalidArgumentException('Invalid trip dates. Dates cannot be in the past (yesterday or earlier).');
     }
 
     $secDiff = strtotime($endDate) - strtotime($startDate);
@@ -227,8 +228,9 @@ function update_trip(PDO $pdo, int $tripId, int $userId, array $data): bool
     $groupSize = max(1, (int) ($data['group_size'] ?? 1));
     $budget = max(0, (float) ($data['budget'] ?? 0));
 
-    if ($startDate === '' || $endDate === '' || $endDate < $startDate) {
-        throw new InvalidArgumentException('Invalid dates.');
+    $today = date('Y-m-d');
+    if ($startDate === '' || $endDate === '' || $endDate < $startDate || $startDate < $today || $endDate < $today) {
+        throw new InvalidArgumentException('Invalid dates. Dates cannot be in the past (yesterday or earlier).');
     }
     if ($title === '') {
         throw new InvalidArgumentException('Title cannot be empty.');

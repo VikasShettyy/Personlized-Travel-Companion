@@ -5,6 +5,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+date_default_timezone_set('Asia/Kolkata');
+
 $host = 'sql306.infinityfree.com';
 $db   = 'if0_43270553_database';
 $user = 'if0_43270553';

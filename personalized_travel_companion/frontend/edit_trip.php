@@ -74,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $secDiff = strtotime($endDate) - strtotime($startDate);
     $days = max(1, floor($secDiff / (60 * 60 * 24)) + 1);
+    $today = date('Y-m-d');
 
     if ($title === '') {
         $error = 'Please enter a trip title.';
@@ -84,6 +85,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         !$isValidDate($endDate)
     ) {
         $error = 'Please select valid start and end dates.';
+    } elseif ($startDate < $today) {
+        $error = 'Start date cannot be in the past (yesterday or earlier).';
+    } elseif ($endDate < $today) {
+        $error = 'End date cannot be in the past (yesterday or earlier).';
     } elseif ($endDate < $startDate) {
         $error = 'End date cannot be before start date.';
     } elseif ($days > 10) {
@@ -303,6 +308,7 @@ require_once __DIR__ . '/includes/header.php';
                 >
             </label>
 
+            <?php $todayDate = date('Y-m-d'); ?>
             <div class="date-fields">
 
                 <label class="field">
@@ -311,6 +317,7 @@ require_once __DIR__ . '/includes/header.php';
                         type="date"
                         id="start_date"
                         name="start_date"
+                        min="<?= $todayDate ?>"
                         value="<?= $escape($form['start_date']) ?>"
                         required
                     >
@@ -322,6 +329,7 @@ require_once __DIR__ . '/includes/header.php';
                         type="date"
                         id="end_date"
                         name="end_date"
+                        min="<?= $todayDate ?>"
                         value="<?= $escape($form['end_date']) ?>"
                         required
                     >
@@ -369,8 +377,17 @@ require_once __DIR__ . '/includes/header.php';
 <script>
     const startInput = document.getElementById('start_date');
     const endInput = document.getElementById('end_date');
+    const todayStr = '<?= $todayDate ?>';
 
     function validateDates() {
+        startInput.min = todayStr;
+        if (startInput.value && startInput.value < todayStr) {
+            startInput.value = todayStr;
+            if (typeof window.showCustomAlert === 'function') {
+                window.showCustomAlert('Start date cannot be in the past (yesterday or earlier).', 'warning');
+            }
+        }
+
         if (!startInput.value) return;
 
         const start = new Date(startInput.value);
@@ -380,7 +397,7 @@ require_once __DIR__ . '/includes/header.php';
         const maxEnd = new Date(start);
         maxEnd.setDate(maxEnd.getDate() + 9);
 
-        const minStr = startInput.value;
+        const minStr = (startInput.value && startInput.value > todayStr) ? startInput.value : todayStr;
         const maxStr = maxEnd.toISOString().split('T')[0];
 
         endInput.min = minStr;
@@ -389,6 +406,9 @@ require_once __DIR__ . '/includes/header.php';
         if (endInput.value) {
             if (endInput.value < minStr) {
                 endInput.value = minStr;
+                if (typeof window.showCustomAlert === 'function') {
+                    window.showCustomAlert('End date cannot be earlier than start date or in the past.', 'warning');
+                }
             } else if (endInput.value > maxStr) {
                 endInput.value = maxStr;
                 if (typeof window.showCustomAlert === 'function') {
